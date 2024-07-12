@@ -3,6 +3,7 @@ import uuid
 import logging
 import pandas as pd
 from fastapi import FastAPI, Form
+from fastapi.responses import FileResponse
 from concurrent.futures import ThreadPoolExecutor
 from model.process import process_query_file, load_jsonl
 from model.search import index, search
@@ -123,6 +124,21 @@ async def check_status(unique_id: str):
         "unique_id": unique_id,
         "status": status_info["status"]
     }
+
+
+@app.get("/download_result/")
+async def download_result(unique_id: str):
+    status_info = file_status.get(unique_id, None)
+    if not status_info or status_info["status"] != "completed":
+        return {"error": "File not found or processing not completed."}
+
+    result_file = status_info["result_file"]
+    if not os.path.exists(result_file):
+        return {"error": "Result file not found."}
+
+    # 设置下载文件的media_type为Excel文件
+    return FileResponse(path=result_file, filename=os.path.basename(result_file), media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
 
 if __name__ == "__main__":
     import uvicorn
