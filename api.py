@@ -2,8 +2,9 @@ import os
 import uuid
 import logging
 import pandas as pd
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from concurrent.futures import ThreadPoolExecutor
 from model.process import process_query_file, load_jsonl
 from model.search import index, search
@@ -13,6 +14,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+# 添加CORS中间件解决跨域问题
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源，如果你有特定的前端网址，可以指定它们
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有方法
+    allow_headers=["*"],  # 允许所有头信息
+)
+
 executor = ThreadPoolExecutor(max_workers=10)
 # 全局变量
 model = None
@@ -103,9 +113,16 @@ def load_model_and_index():
 
 
 @app.post("/v1/process_and_search/")
-async def process_and_search(query_file_path: str = Form(...)):
+async def upload(query_file: UploadFile = File(...)):
     unique_id = generate_unique_id()
+    query_file_path = f"./data/{unique_id}_{query_file.filename}"
     output_file_result = f"./data/result_{unique_id}.xlsx"
+
+    # 保存上传的文件
+    with open(query_file_path, "wb") as f:
+        f.write(await query_file.read())
+    
+    # 提交后台任务
     executor.submit(process_and_search_task, unique_id, query_file_path, output_file_result)
     return {"unique_id": unique_id}
 
@@ -142,4 +159,4 @@ async def download_result(unique_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=6006, reload=True)

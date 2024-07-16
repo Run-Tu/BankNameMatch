@@ -1,3 +1,6 @@
+/data/
+/test/*.xlsx
+/static/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
